@@ -1,81 +1,119 @@
-import React, { useState } from 'react';
+import React from 'react';
+import * as yup from 'yup';
+import { useForm, Controller } from 'react-hook-form';
+// import { yupResolver } from '@hookform/resolvers/yup';
 import styles from './app.module.css';
 
 const sendFormData = (formData) => {
 	console.log(formData);
 };
 
+const schema = yup.object().shape({
+	email: yup
+		.string()
+		.matches(
+			/^[a-zA-Z0-9._%+-]+@/,
+			'Неверный email. Введите корректный адрес электронной почты. Email должен содержать символ @',
+		)
+		.required('Обязательное поле'),
+	password: yup
+		.string()
+		.min(5, 'Минимальная длина пароля - 5 символов')
+		.required('Обязательное поле'),
+	repeatPassword: yup
+		.string()
+		.oneOf([yup.ref('password'), null], 'Пароли должны совпадать')
+		.required('Обязательное поле'),
+});
+
 export const App = () => {
-	const [email, setEmail] = useState('');
-	const [password, setPassword] = useState('');
-	const [repeatPassword, setRepeatPassword] = useState('');
-	const [errors, setErrors] = useState({});
-	const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
+	const { control, handleSubmit, setError, formState } = useForm();
 
-	const validation = ({ target }) => {
-		setErrors(target.value);
-
-		let errors = {};
-
-		if (!/^[a-zA-Z0-9._%+-]+@/.test(email)) {
-			errors.email =
-				'Неверный email. Введите корректный адрес электронной почты. Email должен содержать символ @';
-		} else if (password.length < 5) {
-			errors.password = 'Минимальная длина пароля - 5 символов';
-		} else if (password !== repeatPassword) {
-			errors.repeatPassword = 'Пароли не совпадают. Пароли должны совпадать!';
-		}
-
-		setErrors(errors);
-		setIsSubmitDisabled(Object.keys(errors).length > 0);
-	};
-
-	const onSubmit = (event) => {
-		event.preventDefault();
-		sendFormData({ email, password, repeatPassword });
+	const onSubmit = (data) => {
+		schema
+			.validate(data, { abortEarly: false })
+			.then(() => {
+				// Все в порядке, можно отправлять данные
+				sendFormData(data);
+			})
+			.catch((validationErrors) => {
+				// Устанавливаем ошибки вручную для каждого поля
+				validationErrors.inner.forEach((error) => {
+					setError(error.path, {
+						type: 'manual',
+						message: error.message,
+					});
+				});
+			});
 	};
 
 	return (
 		<div className={styles.app}>
-			<form onSubmit={onSubmit}>
+			<form onSubmit={handleSubmit(onSubmit)}>
 				<div>
-					<input
-						type="text"
+					<label>Email:</label>
+					<Controller
+						control={control}
 						name="email"
-						value={email}
-						placeholder="Введите ваш адрес электронный почты"
-						onChange={({ target }) => setEmail(target.value)}
-						onBlur={validation}
+						render={({ field }) => (
+							<>
+								<input
+									type="text"
+									placeholder="Введите ваш адрес электронный почты"
+									{...field}
+								/>
+								{formState.errors.email && (
+									<div className={styles.errors}>
+										{formState.errors.email.message}
+									</div>
+								)}
+							</>
+						)}
 					/>
-					{errors.email && <div className={styles.errors}>{errors.email}</div>}
 				</div>
 				<div>
-					<input
-						type="password"
+					<label>Password:</label>
+					<Controller
+						control={control}
 						name="password"
-						value={password}
-						placeholder="Введите пароль"
-						onChange={({ target }) => setPassword(target.value)}
-						onBlur={validation}
+						render={({ field }) => (
+							<>
+								<input
+									type="password"
+									placeholder="Введите пароль"
+									{...field}
+								/>
+								{formState.errors.password && (
+									<div className={styles.errors}>
+										{formState.errors.password.message}
+									</div>
+								)}
+							</>
+						)}
 					/>
-					{errors.password && (
-						<div className={styles.errors}>{errors.password}</div>
-					)}
 				</div>
 				<div>
-					<input
-						type="password"
-						name="password"
-						value={repeatPassword}
-						placeholder="Повторите пароль"
-						onChange={({ target }) => setRepeatPassword(target.value)}
-						onBlur={validation}
+					<label>Repeat Password:</label>
+					<Controller
+						control={control}
+						name="repeatPassword"
+						render={({ field }) => (
+							<>
+								<input
+									type="password"
+									placeholder="Повторите пароль"
+									{...field}
+								/>
+								{formState.errors.repeatPassword && (
+									<div className={styles.errors}>
+										{formState.errors.repeatPassword.message}
+									</div>
+								)}
+							</>
+						)}
 					/>
-					{errors.repeatPassword && (
-						<div className={styles.errors}>{errors.repeatPassword}</div>
-					)}
 				</div>
-				<button type="submit" disabled={isSubmitDisabled} autoFocus>
+				<button type="submit" disabled={formState.isSubmitting} autoFocus>
 					Зарегистрироваться
 				</button>
 			</form>
